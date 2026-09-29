@@ -11,7 +11,8 @@
   #scene{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
   #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;font-size:28px;text-align:center;gap:12px;z-index:5}
   #start small{opacity:.6;font-size:16px}
-  #cam{position:fixed;right:10px;bottom:10px;width:220px;border:1px solid #fff5;transform:scaleX(-1);display:none;z-index:4}
+  #cam{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
+  #prev{position:fixed;right:10px;bottom:10px;width:260px;border:1px solid #fff5;transform:scaleX(-1);display:none;z-index:4}
   #hud{position:fixed;left:14px;top:14px;font-size:18px;display:none;z-index:4;text-shadow:0 0 4px #000;white-space:pre}
   #dbg{position:fixed;left:0;top:0;width:80px;height:80px;z-index:6}
 </style>
@@ -19,6 +20,7 @@
 <body>
 <video id="scene" playsinline loop></video>
 <video id="cam" playsinline muted></video>
+<canvas id="prev" width="480" height="360"></canvas>
 <div id="hud"></div>
 <div id="dbg"></div>
 <div id="start"><div>แตะเพื่อเริ่ม</div><small id="msg">อนุญาตให้ใช้กล้องเมื่อเบราว์เซอร์ถาม</small></div>
@@ -55,7 +57,10 @@ async function createLandmarker(setMsg) {
         const fileset = await FilesetResolver.forVisionTasks(`${base}/wasm`);
         return await FaceLandmarker.createFromOptions(fileset, {
           baseOptions: { modelAssetBuffer: modelBuf, delegate },
-          runningMode: "VIDEO", numFaces: 1
+          runningMode: "VIDEO", numFaces: 1,
+          minFaceDetectionConfidence: 0.25,
+          minFacePresenceConfidence: 0.25,
+          minTrackingConfidence: 0.25
         });
       } catch (e) {
         console.error(v, delegate, e);
@@ -75,9 +80,37 @@ function playScene(i) {
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const eyeRatio = (l, t, b, le, r) => dist(l[t], l[b]) / dist(l[le], l[r]);
 
+// ---- ปรับความสว่างภาพกล้องอัตโนมัติ (สำหรับที่มืด) ----
+const W = 480, H = 360, TARGET = 120, MAX_GAIN = 6;
+const work = document.createElement("canvas");
+work.width = W; work.height = H;
+const wctx = work.getContext("2d", { willReadFrequently: true });
+let gain = 1, meanLum = 0;
+const lut = new Uint8ClampedArray(256);
+
+function enhance() {
+  wctx.drawImage(cam, 0, 0, W, H);
+  const img = wctx.getImageData(0, 0, W, H);
+  const d = img.data;
+  // วัดความสว่างเฉลี่ย (สุ่มบางพิกเซล)
+  let sum = 0, n = 0;
+  for (let i = 0; i < d.length; i += 64) { sum += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
+  meanLum = sum / n;
+  const targetGain = Math.min(MAX_GAIN, Math.max(1, TARGET / Math.max(meanLum, 1)));
+  gain = gain * 0.8 + targetGain * 0.2;          // ปรับแบบนุ่มนวล ไม่กระตุก
+  const gamma = 1 / Math.min(2.2, 1 + (gain - 1) * 0.5);
+  for (let i = 0; i < 256; i++) {
+    lut[i] = Math.min(255, 255 * Math.pow(Math.min(1, (i * gain) / 255), gamma));
+  }
+  for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+  wctx.putImageData(img, 0, 0);
+  if (debug) $("prev").getContext("2d").drawImage(work, 0, 0);
+  return work;
+}
+
 function loop() {
   if (cam.readyState >= 2) {
-    const res = landmarker.detectForVideo(cam, performance.now());
+    const res = landmarker.detectForVideo(enhance(), performance.now());
     let eye = null;
     if (res.faceLandmarks && res.faceLandmarks.length) {
       const l = res.faceLandmarks[0];
@@ -95,14 +128,14 @@ function loop() {
       }
     }
     if (debug) {
-      hud.textContent = `BLINK: ${blinkCount}\nSCENE: ${sceneIndex + 1}\nEYE: ${eye === null ? "ไม่เห็นหน้า" : eye.toFixed(3)}`;
+      hud.textContent = `BLINK: ${blinkCount}\nSCENE: ${sceneIndex + 1}\nEYE: ${eye === null ? "ไม่เห็นหน้า" : eye.toFixed(3)}\nสว่าง: ${meanLum.toFixed(0)}  เกน: x${gain.toFixed(1)}`;
     }
   }
   requestAnimationFrame(loop);
 }
 
 $("start").addEventListener("click", async () => {
-  $("msg").textContent = "v5 กำลังโหลด... (WebGL2: " + (glOK ? "ใช้ได้" : "ใช้ไม่ได้") + ")";
+  $("msg").textContent = "v6 กำลังโหลด... (WebGL2: " + (glOK ? "ใช้ได้" : "ใช้ไม่ได้") + ")";
   try {
     playScene(0);   // เริ่มเล่นใน gesture เพื่อปลดล็อกเสียง
 
@@ -112,7 +145,7 @@ $("start").addEventListener("click", async () => {
     cam.srcObject = stream;
     await cam.play();
 
-    landmarker = await createLandmarker(t => $("msg").textContent = "v5 " + t);
+    landmarker = await createLandmarker(t => $("msg").textContent = "v6 " + t);
 
     $("start").style.display = "none";
     requestAnimationFrame(loop);
@@ -125,7 +158,7 @@ $("start").addEventListener("click", async () => {
 // แตะมุมซ้ายบนเพื่อเปิด/ปิดโหมดทดสอบ (พรีวิวกล้อง + ค่าตา)
 $("dbg").addEventListener("click", () => {
   debug = !debug;
-  cam.style.display = hud.style.display = debug ? "block" : "none";
+  $("prev").style.display = hud.style.display = debug ? "block" : "none";
 });
 </script>
 </body>
