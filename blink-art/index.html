@@ -3,123 +3,149 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+<meta name="theme-color" content="#000000">
 <title>BLINK ART</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
 <style>
-  html,body{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none;margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,system-ui,sans-serif;overflow:hidden}
-  #scene{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;transition:opacity 2s ease}
-  #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;font-size:28px;text-align:center;gap:12px;z-index:5}
-  #start small{opacity:.6;font-size:16px}
+  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,system-ui,"Noto Sans Thai",sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+  #scene{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
   #cam{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
-  #prev{position:fixed;right:10px;bottom:10px;width:260px;border:1px solid #fff5;transform:scaleX(-1);display:none;z-index:4}
-  #hud{position:fixed;left:14px;top:14px;font-size:18px;display:none;z-index:4;text-shadow:0 0 4px #000;white-space:pre}
-  #dbg{position:fixed;left:0;top:0;width:80px;height:80px;z-index:6}
+
+  #start{position:fixed;inset:0;z-index:5;background:#000;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #startInner{min-height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));text-align:center;max-width:520px;margin:0 auto}
+  h1{font-size:30px;letter-spacing:.2em;margin:0 0 4px;font-weight:600}
+  .t{font-size:17px;line-height:1.55;margin:0}
+  .e{font-size:14px;line-height:1.5;margin:0;opacity:.65}
+  .note{font-size:13px;line-height:1.5;opacity:.5;margin:0}
+  button{font:inherit;color:#000;background:#fff;border:0;border-radius:999px;padding:14px 38px;font-size:19px;font-weight:600;margin-top:8px}
+  button:disabled{opacity:.5}
+  #msg{font-size:14px;min-height:20px;opacity:.85}
+  #warn{display:none;background:#3a2a00;border:1px solid #a87b00;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5}
+  #warn button{font-size:14px;padding:8px 18px;margin-top:8px}
+  #ver{position:fixed;right:8px;bottom:6px;font-size:10px;opacity:.25;z-index:6}
+
+  #hint{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(92%,460px);box-sizing:border-box;z-index:4;background:rgba(0,0,0,.7);border-radius:14px;padding:12px 14px;text-align:center;font-size:14px;line-height:1.5;opacity:0;pointer-events:none;transition:opacity .6s}
+  #hint.show{opacity:1;pointer-events:auto}
+  #hint small{display:block;opacity:.65;font-size:12px}
+  #hint button{font-size:14px;padding:8px 20px;margin-top:8px}
+
+  #prev{position:fixed;right:10px;top:10px;width:150px;border:1px solid #fff5;transform:scaleX(-1);display:none;z-index:4}
+  #hud{position:fixed;left:12px;top:12px;font-size:14px;display:none;z-index:4;text-shadow:0 0 4px #000;white-space:pre}
+  #dbg{position:fixed;left:0;top:0;width:70px;height:70px;z-index:6}
 </style>
 </head>
 <body>
 <video id="scene" playsinline loop></video>
 <video id="cam" playsinline muted></video>
-<canvas id="prev" width="480" height="360"></canvas>
+<canvas id="prev"></canvas>
 <div id="hud"></div>
 <div id="dbg"></div>
-<div id="start"><div>แตะเพื่อเริ่ม</div><small id="off"></small><small id="msg">อนุญาตให้ใช้กล้องเมื่อเบราว์เซอร์ถาม</small></div>
+
+<div id="hint">
+  ไม่เห็นใบหน้า — ปรับมือถือให้กล้องหน้าหันมาที่คุณ (ถ้ามืดเกินไป ลองเพิ่มความสว่างหน้าจอ)
+  <small>Can't see your face — point the front camera at you (brighten the screen if it's dark)</small>
+  <button id="skip">ฉากถัดไป ▶ / Next ▶</button>
+</div>
+
+<div id="start"><div id="startInner">
+  <h1>BLINK ART</h1>
+  <p class="t">นอนหงาย หนีบมือถือไว้เหนือหน้า ให้กล้องหน้าหันมาที่คุณ<br>เปิดเสียง (หรือใส่หูฟัง) แล้ว<b>กระพริบตา</b>เพื่อเปลี่ยนภาพ</p>
+  <p class="e">Lie down and clamp your phone above your face, front camera toward you. Turn the sound on (or use headphones) and <b>blink</b> to change the image.</p>
+  <p class="note">กล้องใช้ตรวจจับการกระพริบตาในเครื่องของคุณเท่านั้น ไม่มีการบันทึกหรืออัปโหลดภาพ · วิดีโอใช้อินเทอร์เน็ต แนะนำ Wi-Fi<br>The camera is used only to detect blinking on your device. Nothing is recorded or uploaded. Videos use data — Wi-Fi recommended.</p>
+  <div id="warn">
+    ดูเหมือนคุณเปิดผ่านแอปอื่น (เช่น LINE/Facebook/Instagram) ซึ่งอาจใช้กล้องไม่ได้ ควรเปิดลิงก์ด้วย Safari หรือ Chrome<br>
+    <span style="opacity:.7">You seem to be in an in-app browser, which may block the camera. Please open this link in Safari or Chrome.</span><br>
+    <button id="copy">คัดลอกลิงก์ / Copy link</button>
+  </div>
+  <button id="go">เริ่ม / Start</button>
+  <div id="msg"></div>
+</div></div>
+<div id="ver">v14</div>
 
 <script type="module">
-// ช่วยดีบัก: ให้ MediaPipe พิมพ์ข้อความจริงออกมาที่ console
 globalThis.dbg = (...a) => console.log("[mediapipe]", ...a);
-const glOK = !!document.createElement("canvas").getContext("webgl2");
-console.log("WebGL2 available:", glOK);
-
-// ---------- กันผู้ชมกดมั่ว (โหมด Kiosk) ----------
-["contextmenu", "gesturestart", "gesturechange", "dblclick"].forEach(t =>
-  document.addEventListener(t, e => e.preventDefault()));
-document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
-let wakeLock = null;
-async function keepAwake() {
-  try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) { console.log(e); }
-}
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && wakeLock) keepAwake(); });
 
 // ---------- ตั้งค่า ----------
 const SCENE_COUNT = 19;                 // scene1.mp4 ... scene19.mp4
-const sceneFile = i => `scene${i + 1}.mp4`;
-const BLINK_THRESHOLD = 0.20;           // ปรับได้ 0.18-0.25
-const BLINK_COOLDOWN = 0.4;
+const sceneFile = i => `scene${i % SCENE_COUNT + 1}.mp4`;
 const BLINK_ON = 0.5;                   // คะแนนกระพริบเกินนี้ = ตาหลับ (0-1)
-const BLINK_OFF = 0.3;                  // ต่ำกว่านี้ = ตาเปิดอีกครั้ง -> นับเป็น 1 ครั้ง
-const IDLE_MS = 120000;                 // ไม่เห็นหน้านานเกินนี้ (2 นาที) -> พักจอ
-const IDLE_DIM = 0.1;                   // ความสว่างตอนพัก (0.1 = 10%)
-const WAKE_CONFIRM_MS = 1000;           // ต้องเห็นหน้าต่อเนื่องเท่านี้ถึงจะตื่น             // วินาที
-const VERSIONS = ["0.10.21", "0.10.14", "0.10.18"];
+const BLINK_OFF = 0.3;                  // ต่ำกว่านี้ = ตาเปิดอีกครั้ง -> นับ 1 ครั้ง
+const BLINK_THRESHOLD = 0.20;           // ใช้สำรองเมื่อไม่มีคะแนน blendshape
+const BLINK_COOLDOWN = 0.4;             // วินาที
+const STEP_INTERVAL_MS = 50;            // ตรวจจับ ~20 เฟรม/วินาที (เบาต่อมือถือ)
+const HINT_AFTER_MS = 6000;             // ไม่เห็นหน้านานเท่านี้ -> แสดงคำแนะนำ
+const VERSIONS = ["0.10.21", "0.10.14"];
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 const $ = id => document.getElementById(id);
 const scene = $("scene"), cam = $("cam"), hud = $("hud");
 let sceneIndex = 0, blinkCount = 0, eyeClosed = false, lastBlink = 0;
-let landmarker, debug = false;
+let landmarker = null, debug = false, hintShown = false;
+let lastFaceSeen = performance.now();
 let fps = 0, fpsCount = 0, fpsT = performance.now();
-let idle = false, lastFaceSeen = performance.now(), faceSince = null;
+const setMsg = t => { $("msg").textContent = t; };
 
-function enterIdle() {
-  idle = true; eyeClosed = false;
-  scene.style.opacity = IDLE_DIM;
-  setTimeout(() => { if (idle) scene.pause(); }, 2100);   // หยุดเล่นหลังหรี่เสร็จ (เสียงหยุดด้วย)
-}
-function exitIdle() {
-  idle = false; faceSince = null; eyeClosed = false;
-  scene.style.opacity = 1;
-  playScene(0);                                            // เริ่มใหม่ตั้งแต่ฉากแรก
-}
+// ---------- เปิดผ่านแอปในตัว (LINE/FB/IG) ----------
+if (/Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/i.test(navigator.userAgent)) $("warn").style.display = "block";
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(location.href.split("?")[0]); $("copy").textContent = "คัดลอกแล้ว ✓ / Copied ✓"; }
+  catch { $("copy").textContent = location.href; }
+});
 
-async function createLandmarker(setMsg) {
-  setMsg("กำลังโหลดโมเดล...");
-  const modelBuf = new Uint8Array(await (await fetch(MODEL_URL)).arrayBuffer());
-  let lastErr;
-  for (const v of VERSIONS) {
-    for (const delegate of ["GPU", "CPU"]) {
-      try {
-        setMsg(`กำลังเริ่มระบบตรวจจับ (${v}, ${delegate})...`);
-        const base = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}`;
-        const { FaceLandmarker, FilesetResolver } = await import(`${base}/vision_bundle.mjs`);
-        const fileset = await FilesetResolver.forVisionTasks(`${base}/wasm`);
-        return await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetBuffer: modelBuf, delegate },
-          runningMode: "VIDEO", numFaces: 1, outputFaceBlendshapes: true,
-          minFaceDetectionConfidence: 0.25,
-          minFacePresenceConfidence: 0.25,
-          minTrackingConfidence: 0.25
-        });
-      } catch (e) {
-        console.error(v, delegate, e);
-        lastErr = `${v}/${delegate}: ${e.message}`;
-      }
-    }
-  }
-  throw new Error(lastErr);
+// ---------- กันจอดับ ----------
+let wakeLock = null;
+async function keepAwake() { try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) { console.log(e); } }
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { scene.pause(); }
+  else if (landmarker) { scene.play().catch(() => {}); keepAwake(); }
+});
+
+// ---------- วิดีโอ (โหลดฉากถัดไปไว้ล่วงหน้า) ----------
+let pre = { idx: -1, url: null }, curBlob = null;
+
+async function prefetch(idx) {
+  idx = idx % SCENE_COUNT;
+  if (pre.idx === idx) return;
+  if (pre.url) URL.revokeObjectURL(pre.url);
+  pre = { idx, url: null };
+  try {
+    const r = await fetch(sceneFile(idx));
+    if (!r.ok) throw new Error("fetch " + r.status);
+    const url = URL.createObjectURL(await r.blob());
+    if (pre.idx === idx) pre.url = url; else URL.revokeObjectURL(url);
+  } catch (e) { console.log("prefetch fail", e); if (pre.idx === idx) pre = { idx: -1, url: null }; }
 }
 
-// ---------- ออฟไลน์ ----------
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(e => console.log("sw", e));
-  navigator.serviceWorker.addEventListener("message", e => {
-    if (e.data && e.data.type === "cache-progress") {
-      $("off").textContent = e.data.done >= e.data.total ? "พร้อมใช้งานออฟไลน์ ✓" : `กำลังเตรียมออฟไลน์ ${e.data.done}/${e.data.total}`;
-    }
-  });
+function playScene(i) {
+  sceneIndex = i % SCENE_COUNT;
+  let url = sceneFile(sceneIndex), blob = null;
+  if (pre.idx === sceneIndex && pre.url) { url = pre.url; blob = pre.url; pre = { idx: -1, url: null }; }
+  const old = curBlob;
+  scene.src = url;
+  curBlob = blob;
+  if (old) URL.revokeObjectURL(old);
+  scene.play().catch(e => console.log(e));
+  prefetch(sceneIndex + 1);
 }
 
-// ---------- กู้คืนตัวเอง (ไม่ต้องรีโหลด เพราะผู้ชมแตะจอไม่ได้) ----------
+let errCount = 0;
+scene.addEventListener("error", () => {
+  if (errCount++ < 5) setTimeout(() => { pre = { idx: -1, url: null }; playScene(sceneIndex); }, 1500);
+});
+scene.addEventListener("playing", () => { errCount = 0; });
+
+// ---------- กล้อง ----------
 async function openCamera() {
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: 640, height: 480 }, audio: false
+    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
   });
   cam.srcObject = stream;
   await cam.play();
 }
 let lastCamTime = -1, lastCamChange = performance.now();
 setInterval(async () => {
-  if (!landmarker) return;
+  if (!landmarker || document.hidden) return;
   const track = cam.srcObject && cam.srcObject.getVideoTracks()[0];
   if (cam.currentTime !== lastCamTime) { lastCamTime = cam.currentTime; lastCamChange = performance.now(); }
   const stuck = performance.now() - lastCamChange > 5000;
@@ -127,50 +153,88 @@ setInterval(async () => {
     lastCamChange = performance.now();
     try { if (track) track.stop(); await openCamera(); } catch (e) { console.log("cam retry", e); }
   }
-  if (!idle && scene.paused) scene.play().catch(() => {});
+  if (scene.paused) scene.play().catch(() => {});
 }, 3000);
-scene.addEventListener("error", () => setTimeout(() => { if (!idle) playScene(sceneIndex); }, 2000));
-scene.addEventListener("stalled", () => setTimeout(() => { if (!idle && scene.readyState < 3) scene.load(), scene.play().catch(() => {}); }, 4000));
 
-function playScene(i) {
-  sceneIndex = i % SCENE_COUNT;
-  scene.src = sceneFile(sceneIndex);
-  scene.play().catch(e => console.log(e));
+// ---------- MediaPipe ----------
+async function createLandmarker() {
+  // โหลดโมเดลกับไลบรารีพร้อมกัน แทนที่จะรอทีละอย่าง
+  const modelP = fetch(MODEL_URL)
+    .then(r => { if (!r.ok) throw new Error("model " + r.status); return r.arrayBuffer(); })
+    .then(b => new Uint8Array(b));
+  modelP.catch(() => {});
+  let lastErr;
+  for (const v of VERSIONS) {
+    try {
+      const base = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${v}`;
+      const [mod, modelBuf] = await Promise.all([import(`${base}/vision_bundle.mjs`), modelP]);
+      const fileset = await mod.FilesetResolver.forVisionTasks(`${base}/wasm`);
+      for (const delegate of ["GPU", "CPU"]) {
+        try {
+          return await mod.FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: { modelAssetBuffer: modelBuf, delegate },
+            runningMode: "VIDEO", numFaces: 1, outputFaceBlendshapes: true,
+            minFaceDetectionConfidence: 0.25, minFacePresenceConfidence: 0.25, minTrackingConfidence: 0.25
+          });
+        } catch (e) { console.error(v, delegate, e); lastErr = `${v}/${delegate}: ${e.message}`; }
+      }
+    } catch (e) { console.error(v, e); lastErr = `${v}: ${e.message}`; }
+  }
+  throw new Error(lastErr);
 }
+
+// เริ่มเตรียมระบบตรวจจับ "ทันทีที่เปิดหน้า" ระหว่างที่ผู้ชมอ่านคำอธิบาย
+let ready = false, prepPromise = null;
+function prepare() {
+  if (!prepPromise) prepPromise = createLandmarker().then(lm => { ready = true; return lm; })
+    .catch(e => { prepPromise = null; throw e; });
+  return prepPromise;
+}
+setMsg("กำลังเตรียมระบบ… / Preparing…");
+prepare().then(() => {
+  if ($("msg").textContent.startsWith("กำลังเตรียมระบบ")) setMsg("พร้อมแล้ว ✓ / Ready ✓");
+}).catch(e => console.log("prepare failed (will retry on Start)", e));
+prefetch(0);   // โหลดฉากแรกรอไว้
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const eyeRatio = (l, t, b, le, r) => dist(l[t], l[b]) / dist(l[le], l[r]);
 
-// ---- ปรับความสว่างภาพกล้องอัตโนมัติ (สำหรับที่มืด) ----
-const W = 480, H = 360, TARGET = 120, MAX_GAIN = 6;
+// ---- ปรับความสว่างภาพกล้องอัตโนมัติ (ห้องมืด) ----
+const TARGET = 120, MAX_GAIN = 6, WORK_MAX = 320;
 const work = document.createElement("canvas");
-work.width = W; work.height = H;
 const wctx = work.getContext("2d", { willReadFrequently: true });
 let gain = 1, meanLum = 0;
 const lut = new Uint8ClampedArray(256);
 
+function fitWork() {
+  const vw = cam.videoWidth, vh = cam.videoHeight;
+  if (!vw || !vh) return false;
+  const s = WORK_MAX / Math.max(vw, vh);
+  const w = Math.round(vw * s), h = Math.round(vh * s);
+  if (work.width !== w || work.height !== h) { work.width = w; work.height = h; }
+  return true;
+}
 function enhance() {
+  const W = work.width, H = work.height;
   wctx.drawImage(cam, 0, 0, W, H);
-  const img = wctx.getImageData(0, 0, W, H);
-  const d = img.data;
-  // วัดความสว่างเฉลี่ย (สุ่มบางพิกเซล)
+  const img = wctx.getImageData(0, 0, W, H), d = img.data;
   let sum = 0, n = 0;
   for (let i = 0; i < d.length; i += 64) { sum += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
   meanLum = sum / n;
-  const targetGain = Math.min(MAX_GAIN, Math.max(1, TARGET / Math.max(meanLum, 1)));
-  gain = gain * 0.8 + targetGain * 0.2;          // ปรับแบบนุ่มนวล ไม่กระตุก
-  const gamma = 1 / Math.min(2.2, 1 + (gain - 1) * 0.5);
-  for (let i = 0; i < 256; i++) {
-    lut[i] = Math.min(255, 255 * Math.pow(Math.min(1, (i * gain) / 255), gamma));
+  const tg = Math.min(MAX_GAIN, Math.max(1, TARGET / Math.max(meanLum, 1)));
+  gain = gain * 0.8 + tg * 0.2;
+  if (gain > 1.05) {
+    const gamma = 1 / Math.min(2.2, 1 + (gain - 1) * 0.5);
+    for (let i = 0; i < 256; i++) lut[i] = Math.min(255, 255 * Math.pow(Math.min(1, (i * gain) / 255), gamma));
+    for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+    wctx.putImageData(img, 0, 0);
   }
-  if (gain > 1.05) for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
-  wctx.putImageData(img, 0, 0);
-  if (debug) $("prev").getContext("2d").drawImage(work, 0, 0);
+  if (debug) { const p = $("prev"); p.width = W; p.height = H; p.getContext("2d").drawImage(work, 0, 0); }
   return work;
 }
 
 function step() {
-  if (cam.readyState < 2) return;
+  if (cam.readyState < 2 || !fitWork()) return;
   const res = landmarker.detectForVideo(enhance(), performance.now());
   const now = performance.now();
   fpsCount++; if (now - fpsT > 1000) { fps = fpsCount; fpsCount = 0; fpsT = now; }
@@ -181,73 +245,80 @@ function step() {
     lastFaceSeen = now;
     const l = res.faceLandmarks[0];
     eye = (eyeRatio(l, 159, 145, 33, 133) + eyeRatio(l, 386, 374, 362, 263)) / 2;
-    // ใช้คะแนน "กระพริบ" จากโมเดลโดยตรง (แม่นกว่าการวัดสัดส่วนตา เวลามุมกล้องเอียง)
     const bs = res.faceBlendshapes && res.faceBlendshapes[0] && res.faceBlendshapes[0].categories;
     if (bs) {
       const L = bs.find(c => c.categoryName === "eyeBlinkLeft");
       const R = bs.find(c => c.categoryName === "eyeBlinkRight");
       if (L && R) score = (L.score + R.score) / 2;
     }
-    if (score === null) score = eye < BLINK_THRESHOLD ? 1 : 0;   // สำรอง
+    if (score === null) score = eye < BLINK_THRESHOLD ? 1 : 0;
+
+    if (!eyeClosed && score > BLINK_ON) {
+      eyeClosed = true;
+    } else if (eyeClosed && score < BLINK_OFF) {
+      eyeClosed = false;
+      const t = now / 1000;
+      if (t - lastBlink > BLINK_COOLDOWN) { lastBlink = t; blinkCount++; playScene(sceneIndex + 1); }
+    }
   }
 
-  if (idle) {
-    // โหมดพักจอ: รอเห็นหน้าต่อเนื่องก่อนจึงตื่น (กันการจับผิด)
-    if (hasFace) {
-      if (faceSince === null) faceSince = now;
-      if (now - faceSince >= WAKE_CONFIRM_MS) exitIdle();
-    } else {
-      faceSince = null;
-    }
-  } else {
-    if (hasFace) {
-      if (!eyeClosed && score > BLINK_ON) {
-        eyeClosed = true;
-      } else if (eyeClosed && score < BLINK_OFF) {
-        eyeClosed = false;
-        const t = now / 1000;
-        if (t - lastBlink > BLINK_COOLDOWN) {
-          lastBlink = t;
-          blinkCount++;
-          playScene(sceneIndex + 1);
-        }
-      }
-    }
-    if (now - lastFaceSeen > IDLE_MS) enterIdle();
-  }
+  const lost = now - lastFaceSeen > HINT_AFTER_MS;
+  if (lost !== hintShown) { hintShown = lost; $("hint").classList.toggle("show", lost); }
 
   if (debug) {
-    hud.textContent = `BLINK: ${blinkCount}\nSCENE: ${sceneIndex + 1}\nEYE: ${eye === null ? "ไม่เห็นหน้า" : eye.toFixed(3)}\nBLINK SCORE: ${score === null ? "-" : score.toFixed(2)}  FPS: ${fps}\nสว่าง: ${meanLum.toFixed(0)}  เกน: x${gain.toFixed(1)}\nโหมด: ${idle ? "พักจอ" : "เล่น"}  (ไม่เห็นหน้า ${Math.round((now - lastFaceSeen) / 1000)} วิ)`;
+    hud.textContent = `BLINK: ${blinkCount}\nSCENE: ${sceneIndex + 1}\nEYE: ${eye === null ? "no face" : eye.toFixed(3)}\nSCORE: ${score === null ? "-" : score.toFixed(2)}  FPS: ${fps}\nLUM: ${meanLum.toFixed(0)}  GAIN: x${gain.toFixed(1)}`;
   }
 }
 
-function loop() {
-  try { step(); } catch (e) { console.log(e); }
+let lastStepT = 0;
+function loop(t) {
   requestAnimationFrame(loop);
+  if (t - lastStepT < STEP_INTERVAL_MS) return;
+  lastStepT = t;
+  try { step(); } catch (e) { console.log(e); }
 }
 
-$("start").addEventListener("click", async () => {
-  $("msg").textContent = "v10 กำลังโหลด... (WebGL2: " + (glOK ? "ใช้ได้" : "ใช้ไม่ได้") + ")";
+// ---------- เริ่ม ----------
+function explain(e) {
+  const n = e && e.name;
+  if (n === "NotAllowedError" || n === "SecurityError")
+    return "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตกล้องในเบราว์เซอร์แล้วลองอีกครั้ง / Camera permission denied — please allow the camera and try again.";
+  if (n === "NotFoundError" || n === "OverconstrainedError")
+    return "ไม่พบกล้องหน้า / No front camera found.";
+  if (n === "NotReadableError")
+    return "กล้องถูกใช้โดยแอปอื่นอยู่ ปิดแอปนั้นแล้วลองอีกครั้ง / The camera is in use by another app.";
+  if (e && e.message === "NO_MEDIA")
+    return "เบราว์เซอร์นี้ใช้กล้องไม่ได้ ลองเปิดด้วย Safari หรือ Chrome / This browser can't use the camera. Try Safari or Chrome.";
+  return "เกิดข้อผิดพลาด / Error: " + (e && e.message ? e.message : e);
+}
+
+$("go").addEventListener("click", async () => {
+  const btn = $("go");
+  btn.disabled = true;
+  setMsg("กำลังโหลด… / Loading…");
   try {
-    playScene(0);   // เริ่มเล่นใน gesture เพื่อปลดล็อกเสียง
-
-    await openCamera();
-
-    landmarker = await createLandmarker(t => $("msg").textContent = "v10 " + t);
-
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("NO_MEDIA");
+    playScene(0);                 // เริ่มเล่นใน gesture เพื่อปลดล็อกเสียง
+    if (!ready) setMsg("กำลังเตรียมระบบ… / Preparing…");
+    const [, lm] = await Promise.all([openCamera(), prepare()]);
+    landmarker = lm;
     lastFaceSeen = performance.now();
     keepAwake();
     $("start").style.display = "none";
     requestAnimationFrame(loop);
   } catch (e) {
-    $("msg").textContent = "เกิดข้อผิดพลาด: " + e.message;
     console.error(e);
+    scene.pause();
+    setMsg(explain(e));
+    btn.textContent = "ลองอีกครั้ง / Try again";
+    btn.disabled = false;
   }
 });
 
-// โหมดทดสอบ: เปิดได้เฉพาะเมื่อเข้าเว็บด้วย ?debug ท้ายลิงก์ แล้วแตะมุมซ้ายบน (พรีวิวกล้อง + ค่าตา)
-const DEBUG_ENABLED = new URLSearchParams(location.search).has("debug");
-if (!DEBUG_ENABLED) $("dbg").remove();
+$("skip").addEventListener("click", () => playScene(sceneIndex + 1));
+
+// โหมดทดสอบ: เข้าลิงก์ที่มี ?debug แล้วแตะมุมซ้ายบน
+if (!new URLSearchParams(location.search).has("debug")) $("dbg").remove();
 else $("dbg").addEventListener("click", () => {
   debug = !debug;
   $("prev").style.display = hud.style.display = debug ? "block" : "none";
