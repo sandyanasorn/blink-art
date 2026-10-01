@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
 <style>
   html,body{margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,system-ui,"Noto Sans Thai",sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
-  #scene{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  #scene{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
   #cam{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
 
   #start{position:fixed;inset:0;z-index:5;background:#000;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -52,6 +52,7 @@
   <h1>BLINK ART</h1>
   <p class="t">นอนหงาย หนีบมือถือไว้เหนือหน้า ให้กล้องหน้าหันมาที่คุณ<br>เปิดเสียง (หรือใส่หูฟัง) แล้ว<b>กระพริบตา</b>เพื่อเปลี่ยนภาพ</p>
   <p class="e">Lie down and clamp your phone above your face, front camera toward you. Turn the sound on (or use headphones) and <b>blink</b> to change the image.</p>
+  <p class="note" style="opacity:.75">แนะนำให้หมุนมือถือเป็นแนวนอน ภาพจะเต็มจอมากที่สุด / Landscape orientation fills the screen best.</p>
   <p class="note">กล้องใช้ตรวจจับการกระพริบตาในเครื่องของคุณเท่านั้น ไม่มีการบันทึกหรืออัปโหลดภาพ · วิดีโอใช้อินเทอร์เน็ต แนะนำ Wi-Fi<br>The camera is used only to detect blinking on your device. Nothing is recorded or uploaded. Videos use data — Wi-Fi recommended.</p>
   <div id="warn">
     ดูเหมือนคุณเปิดผ่านแอปอื่น (เช่น LINE/Facebook/Instagram) ซึ่งอาจใช้กล้องไม่ได้ ควรเปิดลิงก์ด้วย Safari หรือ Chrome<br>
@@ -61,7 +62,7 @@
   <button id="go">เริ่ม / Start</button>
   <div id="msg"></div>
 </div></div>
-<div id="ver">v14</div>
+<div id="ver">v15</div>
 
 <script type="module">
 globalThis.dbg = (...a) => console.log("[mediapipe]", ...a);
@@ -292,8 +293,17 @@ function explain(e) {
   return "เกิดข้อผิดพลาด / Error: " + (e && e.message ? e.message : e);
 }
 
+function goFullscreen() {
+  try {
+    const el = document.documentElement;
+    const f = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (f) { const p = f.call(el); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) {}
+}
+
 $("go").addEventListener("click", async () => {
   const btn = $("go");
+  goFullscreen();
   btn.disabled = true;
   setMsg("กำลังโหลด… / Loading…");
   try {
